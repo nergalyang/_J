@@ -4,7 +4,7 @@
 @update 2017/4/21
 */
 (function(factory) {
-	//这部分参考backbone，定义全局变量root，记得先引入jQuery
+	//这部分参考backbone，定义全局变量root
 	var root = (typeof self == 'object' && self.self === self && self) ||
 	        (typeof global == 'object' && global.global === global && global);
 	if (typeof define === 'function' && define.amd) {
@@ -49,11 +49,12 @@
 	_J.namespace('_J.Menu');
 	_J.Menu = (function(){
 		// var dependencies
+
+		// var private properties and method
 		var html = '',
 			level = 0,
 			rowData;
-		// var private properties and method
-		// end var
+
 		// public API -- constructor
 		var Constr = function (selector, data) {
 			if (!(this instanceof Constr)) {
@@ -69,11 +70,12 @@
 			    $('#_Jtop ul li').hide();
 			    $('#_Jtop ul').click(function(e) {
 				    e.stopPropagation(); //阻止冒泡，否则有奇怪的事情发生
+				    $(e.target).parent().siblings().find('li').hide()//隐藏其他菜单，注释掉则不自动隐藏
 				    var el = $(e.target).children("li");
 				    if(el.css('display') == 'list-item') {
 					      el.hide();
 				    }else {
-				      el.fadeIn();
+				      el.fadeIn('slow');
 				    }
 				});
 			    return this;
