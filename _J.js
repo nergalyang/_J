@@ -49,21 +49,20 @@
 	_J.namespace('_J.Menu');
 	_J.Menu = (function(){
 		// var dependencies
-
-		// var private properties and method
 		var html = '',
 			level = 0,
 			rowData;
-
+		// var private properties and method
+		// end var
 		// public API -- constructor
 		var Constr = function (selector, data) {
 			if (!(this instanceof Constr)) {
 			 	return new Constr(selector, data);
-			 }
-			$.extend(this,($.call(this,selector)))
+			}
+			var obj = $.call(this, selector);//暂存jQuery对象
 			rowData = data;
 			this.getMenu(rowData);
-			this.__proto__ = $;
+			//this.__proto__ = $.fn;
 			this.draw = function () {
 				this.append(html);
 				//绑定展开缩小事件
@@ -80,8 +79,14 @@
 				});
 			    return this;
 			}
+			this.getRowData = function () {
+				return rowData;
+			};
+			$.extend(obj,this);//完美继承jQuery，本质上是完美双重继承
+			return obj;
 		}
 		// public API -- prototype
+			// Constr.prototype = $.__proto__;
 			Constr.prototype.constructor =  '_J.Menu'
 			Constr.prototype.version = '1.0.0'
 			Constr.prototype.getMenu= function(rowData) {
