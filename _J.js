@@ -7,6 +7,7 @@
 	//这部分参考backbone，定义全局变量root
 	var root = (typeof self == 'object' && self.self === self && self) ||
 	        (typeof global == 'object' && global.global === global && global);
+
 	if (typeof define === 'function' && define.amd) {
 		define(['jquery', 'exports'], function( $, exports) {
 			 root._J = factory(root, exports, $);
@@ -49,21 +50,20 @@
 	_J.namespace('_J.Menu');
 	_J.Menu = (function(){
 		// var dependencies
+		// var private properties and method
 		var html = '',
 			level = 0,
 			rowData;
-		// var private properties and method
 		// end var
 		// public API -- constructor
-		var Constr = function (selector, data) {
+		var Constr = function (selector) {
 			if (!(this instanceof Constr)) {
-			 	return new Constr(selector, data);
+			 	return new Constr(selector);
 			}
-			var obj = $.call(this, selector);//暂存jQuery对象
-			rowData = data;
-			this.getMenu(rowData);
-			//this.__proto__ = $.fn;
-			this.draw = function () {
+			var obj = $(selector);//暂存jQuery对象
+			// this.getMenu(rowData);
+			this.draw = function (data) {
+				this.getMenu(data);
 				this.append(html);
 				//绑定展开缩小事件
 			    $('#_Jtop ul li').hide();
@@ -77,6 +77,8 @@
 				      el.fadeIn('slow');
 				    }
 				});
+				// 内存回收一下咯
+				html= '';
 			    return this;
 			}
 			this.getRowData = function () {
@@ -87,13 +89,14 @@
 		}
 		// public API -- prototype
 			// Constr.prototype = $.__proto__;
-			Constr.prototype.constructor =  '_J.Menu'
-			Constr.prototype.version = '1.0.0'
-			Constr.prototype.getMenu= function(rowData) {
+			Constr.prototype.constructor =  '_J.Menu';
+			Constr.prototype.version = '1.0.0';
+			Constr.prototype.getMenu= function(data) {
+				rowData = data;
 				html = '<ul id="_Jtop">';
 				this.genVerticalMenu(rowData);
 				html += '</ul>';
-			}
+			};
 			/*接收的格式
 			var data1 = [{
 				'商品管理':['商品分类管理@http://www.baidu.com',{'二级菜单':['二一@http://www.baidu.com','二二@http://www.baidu.com']},'商品公告审核@http://www.baidu.com'],
@@ -124,7 +127,7 @@
 						level -=1;
 					}
 				}
-			}
+			};
 			// var data = [{id:1,name:'商品管理',children:[{id:2,name:'商品分类管理',children:[{id:4,name:'三一',children:[],url:'abc'}],url:'abc'},{id:3,name:'商品公告审核',children:[],url:'abc'}],url:'abc'}];
 			// sortData的格式
 			Constr.prototype.sortData = function (data) {
@@ -149,11 +152,198 @@
 				}else {
 					return data.name+'@'+data.url;
 				}
-			}
+			};
 			Constr.prototype.getSortData = function (data) {
 				return this.sortData(data);;
-			}
+			};
 		return Constr;
 	})();
+
+
+
+	_J.namespace('_J.Ajax');
+	_J.Ajax = (function(){
+		// //私有变量
+		var options,//选项及选项默认值
+			defaults = {
+		        url: '',
+		        dataType: 'text',
+		        params: {},
+		        onSend: function (obj, str) { return true; },
+		        success: function (e) {},
+		        onProgress: function (e) {}
+		    },
+		    /*储存确保一个id只有一个实例*/
+		    instances = {};
+		//依赖或者工具库
+	    function formDataSubmit(options) {
+	        if (this.state === false) {
+	        	this.state = true;
+		        var options = options,
+		        	fileObj = this[0].files[0],
+		        	fd = new FormData(),//h5对象
+		        	key,
+		        	that = this;
+
+		        //添加参数
+		        for (key in options.params) {
+		            if (options.params.hasOwnProperty(key)) {
+		            	fd.append(key, options.params[key])
+		            }
+		        }
+		        var fileName = this.attr('name');
+		        if (fileName == ''
+		            || fileName == undefined) {
+		            fileName = 'file';
+		        }
+		        fd.append(fileName, fileObj);
+		        //异步上传
+		        var xhr = new XMLHttpRequest();
+		        xhr.upload.addEventListener("progress", function (evt) {
+		            if (evt.lengthComputable) {
+		                var percentComplete = Math.round(evt.loaded * 100 / evt.total);
+		                console.log(percentComplete + "%");
+		                if (options.onProgress) {
+		                	//上传事件回调
+		                    options.onProgress(evt);
+		                }
+		            }
+		        }, false);
+		        xhr.addEventListener("load", function (evt) {
+		            that.removeAttr('disabled');
+		            that.state = false;
+		            that.val('');
+		            if ('json' == options.dataType) {
+		            	var d;
+		            	try {
+		                	d = window.eval('(' + evt.target.responseText + ')')
+		                }catch(err)
+		                {
+		                	d = JSON.parse(evt.target.responseText)
+		                }
+		                options.success(d);
+		            } else {
+		            	options.success(evt.target.responseText);
+		            }
+		        }, false);
+		        xhr.addEventListener("error", function () {
+		            log("error");
+		        }, false);
+		        //xhr.setRequestHeader('Content-Type', 'text/html'); 
+		        xhr.open("POST", options.url);
+		        xhr.send(fd);
+		        this.attr('disabled','disabled');
+	        }
+	    }
+
+	    function iFrameUpload (options) {
+	    	//如果有多个文件就生成多个iframe，用时间戳和随机数确保没有重复。要是重复那你赶紧去买彩票。
+	    	//实例变量
+	    	if (this.state === false) {
+		    	this.state = true;
+		    	var iframeName = '' + (new Date).getTime()+String(Math.random()).slice(2),
+		    		iframe = $('<iframe style="display:none;"></iframe>').attr('name', iframeName),
+		    		//form的target属性{framename：在指定的框架中打开，_blank：在新窗口中打开，_parent：在父框架集中打开
+		    		formObj = $('<form method="post" style="display:none;" enctype="multipart/form-data"></form>').attr('action', options.url).attr('id', 'form_'+iframeName).attr("target", iframeName),
+	            	formContent = "";
+	            /*添加参数*/
+	            for (key in options.params) {
+	            	if(options.params.hasOwnProperty(key)) {
+	                	formContent += '<input type="hidden" name="' + key + '" value="' + options.params[key] + '">';
+	            	}
+	            }
+	            /*append方式会把input移到form里面，所以要copy一个新的*/
+	            var anotherTarget = this.clone(true);
+	            formObj.append(formContent).append(anotherTarget);
+	            $(document.body).append(iframe).append(formObj);
+		    	var form = $('#form_'+iframeName);
+		    	this.attr("disabled", "disabled");
+	    		var that = this;
+	            //由于我们是上传到了iframe中，所以我们只需要监听iframe的load事件，如果有返回值了，我们就能获取到，从而进行进一步处理。
+	            iframe.on('load', function(e) {
+		        	var contents = $(this).contents().get(0);
+		            var data = $(contents).find('body').text();
+	                //IE8
+	                if ('json' == options.dataType.toLowerCase()) {
+	                    try {
+	                        data = window.eval('(' + data + ')');
+	                    }
+	                    catch (e) {
+	                        console.error(e);
+	                        data = $(contents).find('body').text();
+	                    }
+	                }
+	                options.success(data);
+	                //清空input
+			        anotherTarget.val('');
+			        //清除临时的上传变量
+	                iframe.remove();
+	                form.remove();
+	                //内外都清空
+	                iframe = null;
+					that.state = false;
+	                //启用
+	                that.removeAttr("disabled");
+	                that.val('')
+	            })
+	            try {
+	                form.submit();
+	            } catch (e) {
+	                console.error(e);
+	            }
+	    	}
+	    }
+		var AjaxConstr = function (selector) {
+			if (!(this instanceof AjaxConstr)) {
+			 	return new AjaxConstr(selector);
+			}
+			var obj = $(selector);//暂存jQuery对象
+			this.options = function (opts) {
+				options = $.extend({}, defaults, opts);
+				return this;
+			};
+			this.state = false;//false为未上传，true为正在上传
+			this.upload = function () {
+				if(!options) {
+					console.error('请先配置options')
+				}
+		        if (options.url == '' || options.url == null) {
+		            console.error("无上传地址");
+		            return;
+		        };
+		        if (this.val() == '' || this.val() == null) {
+		            console.error("请选择文件");
+		            return;
+		        };
+		        try {
+		        	options.onSend();
+		        } catch (e) {
+		        	console.error(e);
+		        }
+		        /*判断是否可以用h5*/
+		        if (root.FormData) {
+		            formDataSubmit.call(this, options);
+		        } else {
+					iFrameUpload.call(this, options);
+		        }
+			};
+			$.extend(obj,this);//完美继承jQuery，本质上是完美双重继承
+			return obj;
+		};
+		AjaxConstr.prototype.constructor = AjaxConstr;
+		return {  
+			name:  '_J.Ajax',
+			getInstance:  function( options ) {   
+				if( instances.hasOwnProperty(options) )  {    
+					return instances[options]
+				}else {
+					instances[options] = AjaxConstr( options );
+					return instances[options];
+				}     
+			} 
+		}; 
+	})();
+
+
 	return _J;
 })
