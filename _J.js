@@ -1,7 +1,7 @@
 /*
 @author Phil
 @date 2017/4/20
-@update 2017/4/21
+@update 2017/4/25
 */
 (function(factory) {
 	//这部分参考backbone，定义全局变量root
@@ -21,6 +21,7 @@
  	}
 })(function(root, _J, $){
 	//正式开始啦,返回this，能实现链式调用
+
 	var previous_J = root._J;
 
 	_J.version = '1.0.0';
@@ -136,7 +137,7 @@
 					for(var k=0,len=data.length;k<len;k+=1) {
 						var name = data[k].name;
 						var children = data[k].children;
-						if (children.length!=0) {
+						if (children && children.length!=0) {
 							var tempObj = {};
 							tempObj[name] = this.sortData(children);
 							tempArr[k] = tempObj;
@@ -145,11 +146,12 @@
 						}
 					}
 					return tempArr;
-				} else if (data instanceof Object && data.children.length > 0) {
+				} else if (data instanceof Object && data.children && data.children.length > 0) {
 					var tempObj = {};
 					tempObj[data.name] = this.sortData(data.children);
 					return tempObj;
 				}else {
+					console.log(data)
 					return data.name+'@'+data.url;
 				}
 			};
@@ -213,6 +215,7 @@
 		            that.removeAttr('disabled');
 		            that.state = false;
 		            that.val('');
+
 		            if ('json' == options.dataType) {
 		            	var d;
 		            	try {
@@ -261,7 +264,7 @@
 	    		var that = this;
 	            //由于我们是上传到了iframe中，所以我们只需要监听iframe的load事件，如果有返回值了，我们就能获取到，从而进行进一步处理。
 	            iframe.on('load', function(e) {
-		        	var contents = $(this).contents().get(0);
+		        	var contents = $(that).contents().get(0);
 		            var data = $(contents).find('body').text();
 	                //IE8
 	                if ('json' == options.dataType.toLowerCase()) {
@@ -340,7 +343,8 @@
 					instances[options] = AjaxConstr( options );
 					return instances[options];
 				}     
-			} 
+			}
+			//类属性接口
 		}; 
 	})();
 
