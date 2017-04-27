@@ -40,7 +40,7 @@
 			arr = Array.prototype.slice.call(arr,1);
 		}
 		for( i=0,len=arr.length;i<len;i+=1) {
-			if( typeof parent[arr[i]] === 'undefined') {
+			if( !parent[arr[i]]) {	//if( typeof parent[arr[i]] === 'undefined') {
 				parent[arr[i]] = {};
 			}
 			parent = parent[arr[i]]
@@ -107,10 +107,14 @@
 			Constr.prototype.genVerticalMenu = function (data) {
 				if ( typeof data === 'string' ) {
 					if(data.indexOf('@')!== -1) {
-					  var start = data.indexOf('@'),
-					      end = data.length,
-					      url = data.slice(start+1, end);
-					  html += '<li class="_Jli'+ level +'"><a href="'+ url +'">'+ data.slice(0,start) +'</a></li>';
+						var start = data.indexOf('@'),
+							end = data.length,
+							url = data.slice(start+1, end);
+							if ( url.charAt(0) === '.') {
+							  html += '<li class="_Jli'+ level +'"><a href="'+ url +'">'+ data.slice(0,start) +'</a></li>';
+							}else {
+							  html += '<li class="_Jli'+ level +'"><a href=".'+ url +'">'+ data.slice(0,start) +'</a></li>';
+							}
 					}else {
 					  html += '<li class="_Jli'+ level +'">'+ data +'</li>';
 					}
@@ -350,7 +354,7 @@
 			//类属性接口
 		}; 
 	})();
-
+//例子
  /* _J.Ajax.getInstance('#tosubmit1').options({
     url: 'abc',
     dataType:'text',
@@ -379,5 +383,69 @@
       console.log(data);
     }
   }).upload();*/
+
+
+
+/*	_J.Ajax.getInstance = (function () {
+		也可以生成类的共有属性getInstance,储存确保一个id只有一个实例
+		var instances = {};
+		return function( selector ) {   
+			if( instances.hasOwnProperty(selector) )  {    
+				return instances[selector]
+			}else {
+				instances[selector] = _J.Ajax( selector );
+				return instances[selector];
+			}     
+		}
+	})()*/
+	var strategies = {
+		isNotEmpty : function ( value, errorMsg ) {
+			if(value === '') {
+				return errorMsg;
+			}
+		},
+		minLength : function ( value, length, errorMsg ) {
+			if(value.length<length) {
+				return errorMsg;
+			}
+		},
+		isMobile : function (value, errorMsg) {
+			if( !/(^1[3][5][8][0-9]{9}$)/.test( value ) ) {
+				return errorMsg;
+			}
+		}
+	}; 
+	_J.namespace('_J.Ajax');
+	_J.Validator = function () {
+		this.cache = [];
+	};
+	_J.Validator.prototype.add = function ( dom, rules ) {
+		var _self = this;
+		for ( var i=0,rule; rule = rules[i++]; ) {
+			(function ( rule ) {
+				//比较区别多个rule
+				var strategyArr = rule.strategy.split(':'),
+					strategy = strategyArr.shift(),
+					errorMsg = rule.errorMsg;
+				strategyArr.unshift(dom.val());
+				strategyArr.push(errorMsg);
+				_self.cache.push([dom, function(){
+					return strategies[strategy].apply( dom, strategyArr );
+				}])
+			})( rule )
+
+		}
+	};
+	_J.Validator.prototype.start = function (callback) {
+		var i,
+			validatorFunc,
+			errorMsg;	
+		for ( i = 0; validatorFunc = this.cache[i++]; ) {
+			errorMsg = validatorFunc[1]();
+			if ( errorMsg ) {
+				callback(validatorFunc[0], errorMsg);
+			}
+		}
+	};
 	return _J;
 })

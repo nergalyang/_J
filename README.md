@@ -105,3 +105,13 @@ _J.Ajax.getInstance('#upload').options({
 
 
 ************************************************************************************************************************************************
+
+
+var validator = new _J.Validator();
+validator.add( $('#myinpu'), [{ strategy: 'isNotEmpty', errorMsg: '不能为空' }, { strategy: 'minLength:10', errorMsg: '长度不能小于10' }] );
+validator.start(callback);
+
+callback接收两个参数，传入的jQueryDOM对象，以及errorMsg；
+var callback = function ( dom, errorMsg ) {
+  dom.append(errorMsg);
+}
