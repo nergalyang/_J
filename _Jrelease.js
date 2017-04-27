@@ -308,7 +308,7 @@
 				options = $.extend({}, defaults, opts);
 				return this;
 			};
-			this.state = false;//false为未上传，true为正在上传
+			this.state = false;//false为未上传，true为正在上传，确保同一个文件不会被多次上传
 			this.upload = function () {
 				if(!options) {
 					console.error('请先配置options')
@@ -333,7 +333,7 @@
 					iFrameUpload.call(this, options);
 		        }
 			};
-			$.extend(obj,this);//完美继承jQuery，本质上是双重继承
+			$.extend(obj,this);//完美继承jQuery，本质上是完美双重继承
 			return obj;
 		};
 		AjaxConstr.prototype.constructor = AjaxConstr;
@@ -351,35 +351,33 @@
 		}; 
 	})();
 
-
-
-
-
-
-
-	_J.namespace('_J.Validate');
-	_J.Validate = (function(){
-			var rules;
-			//此处估计要有策略模式
-
-
-
-			var ValidateConstr = function (configuration, callback) {
-					var key;
-					for( key in configuration) {
-
-					}
-
-
-
-
-			};
-			return ValidateConstr;
-	})();
-
-
-
-
-
+ /* _J.Ajax.getInstance('#tosubmit1').options({
+    url: 'abc',
+    dataType:'text',
+    onSend: function() {
+      
+    },
+    success: function(data) {
+      console.log(data);
+    }
+  }).upload();*/
+/*也可以return function( selector ) {   
+				if( instances.hasOwnProperty(selector) )  {    
+					return instances[selector]
+				}else {
+					instances[selector] = AjaxConstr( selector );
+					return instances[selector];
+				}     
+			}
+  new _J.Ajax('#tosubmit1').options({
+    url: 'abc',
+    dataType:'text',
+    onSend: function() {
+      
+    },
+    success: function(data) {
+      console.log(data);
+    }
+  }).upload();*/
 	return _J;
-});
+})
