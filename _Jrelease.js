@@ -78,6 +78,18 @@
 				      el.fadeIn('slow');
 				    }
 				});
+				//根据当前url回选
+				var currentUrl = this.getUrlRelativePath()
+				$('._JUrl').each(function( i, el) {
+					if($(el).attr('href') === ('.'+currentUrl)) {
+						var $targetLi = $(el).parent();
+						while ( $targetLi.parent().attr('id') != '_Jtop' ) {
+							$targetLi.show();
+							$targetLi.siblings().show();
+							$targetLi = $targetLi.parent().parent();
+						}
+					}
+				})
 				// 内存回收一下咯
 				html= '';
 			    return this;
@@ -98,6 +110,18 @@
 				this.genVerticalMenu(rowData);
 				html += '</ul>';
 			};
+			Constr.prototype.getUrlRelativePath = function () {
+		　　　　var url = document.location.toString();
+		　　　　var arrUrl = url.split("//");
+
+		　　　　var start = arrUrl[1].indexOf("/");
+		　　　　var relUrl = arrUrl[1].substring(start);//stop省略，截取从start开始到结尾的所有字符
+
+		　　　　if(relUrl.indexOf("?") != -1){
+		　　　　　　relUrl = relUrl.split("?")[0];
+		　　　　}
+		　　　　return relUrl;
+		　　};
 			/*接收的格式
 			var data1 = [{
 				'商品管理':['商品分类管理@http://www.baidu.com',{'二级菜单':['二一@http://www.baidu.com','二二@http://www.baidu.com']},'商品公告审核@http://www.baidu.com'],
@@ -111,9 +135,9 @@
 							end = data.length,
 							url = data.slice(start+1, end);
 							if ( url.charAt(0) === '.') {
-							  html += '<li class="_Jli'+ level +'"><a href="'+ url +'">'+ data.slice(0,start) +'</a></li>';
+							  html += '<li class="_Jli'+ level +'"><a class="_JUrl" href="'+ url +'">'+ data.slice(0,start) +'</a></li>';
 							}else {
-							  html += '<li class="_Jli'+ level +'"><a href=".'+ url +'">'+ data.slice(0,start) +'</a></li>';
+							  html += '<li class="_Jli'+ level +'"><a class="_JUrl" href=".'+ url +'">'+ data.slice(0,start) +'</a></li>';
 							}
 					}else {
 					  html += '<li class="_Jli'+ level +'">'+ data +'</li>';
@@ -303,6 +327,7 @@
 	            }
 	    	}
 	    }
+
 		var AjaxConstr = function (selector) {
 			if (!(this instanceof AjaxConstr)) {
 			 	return new AjaxConstr(selector);
