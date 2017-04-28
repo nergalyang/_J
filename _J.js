@@ -2,6 +2,7 @@
 @author Phil
 @date 2017/4/20
 @update 2017/4/25
+@update 2017/4/28
 */
 (function(factory) {
 	//这部分参考backbone，定义全局变量root
@@ -43,10 +44,10 @@
 			if( !parent[arr[i]]) {	//if( typeof parent[arr[i]] === 'undefined') {
 				parent[arr[i]] = {};
 			}
-			parent = parent[arr[i]]
+			parent = parent[arr[i]];
 		}
 		return parent;
-	}
+	};
 	//Menu是一个类，继承了jQuery，有私有属性和方法,
 	_J.namespace('_J.Menu');
 	_J.Menu = (function(){
@@ -70,7 +71,7 @@
 			    $('#_Jtop ul li').hide();
 			    $('#_Jtop ul').click(function(e) {
 				    e.stopPropagation(); //阻止冒泡，否则有奇怪的事情发生
-				    $(e.target).parent().siblings().find('li').hide()//隐藏其他菜单，注释掉则不自动隐藏
+				    $(e.target).parent().siblings().find('li').hide();//隐藏其他菜单，注释掉则不自动隐藏
 				    var el = $(e.target).children("li");
 				    if(el.css('display') == 'list-item') {
 					      el.hide();
@@ -79,9 +80,9 @@
 				    }
 				});
 				//根据当前url回选
-				var currentUrl = this.getUrlRelativePath()
+				var currentUrl = this.getUrlRelativePath();
 				$('._JUrl').each(function( i, el) {
-					if($(el).attr('href') === ('.'+currentUrl)) {
+					if($(el).attr('href') === (currentUrl)) {
 						var $targetLi = $(el).parent();
 						while ( $targetLi.parent().attr('id') != '_Jtop' ) {
 							$targetLi.show();
@@ -89,17 +90,17 @@
 							$targetLi = $targetLi.parent().parent();
 						}
 					}
-				})
+				});
 				// 内存回收一下咯
 				html= '';
 			    return this;
-			}
+			};
 			this.getRowData = function () {
 				return rowData;
 			};
 			$.extend(obj,this);//完美继承jQuery，本质上是完美双重继承
 			return obj;
-		}
+		};
 		// public API -- prototype
 			// Constr.prototype = $.__proto__;
 			Constr.prototype.constructor =  '_J.Menu';
@@ -111,17 +112,15 @@
 				html += '</ul>';
 			};
 			Constr.prototype.getUrlRelativePath = function () {
-		　　　　var url = document.location.toString();
-		　　　　var arrUrl = url.split("//");
-
-		　　　　var start = arrUrl[1].indexOf("/");
-		　　　　var relUrl = arrUrl[1].substring(start);//stop省略，截取从start开始到结尾的所有字符
-
-		　　　　if(relUrl.indexOf("?") != -1){
-		　　　　　　relUrl = relUrl.split("?")[0];
-		　　　　}
-		　　　　return relUrl;
-		　　};
+				var url = document.location.toString(),
+					arrUrl = url.split("//"),
+					start = arrUrl[1].indexOf("/"),
+					relUrl = arrUrl[1].substring(start);
+				if(relUrl.indexOf("?") != -1){
+					relUrl = relUrl.split("?")[0];
+				}
+				return relUrl;
+			};
 			/*接收的格式
 			var data1 = [{
 				'商品管理':['商品分类管理@http://www.baidu.com',{'二级菜单':['二一@http://www.baidu.com','二二@http://www.baidu.com']},'商品公告审核@http://www.baidu.com'],
@@ -130,17 +129,15 @@
 			}];*/
 			Constr.prototype.genVerticalMenu = function (data) {
 				if ( typeof data === 'string' ) {
-					if(data.indexOf('@')!== -1) {
-						var start = data.indexOf('@'),
-							end = data.length,
-							url = data.slice(start+1, end);
-							if ( url.charAt(0) === '.') {
-							  html += '<li class="_Jli'+ level +'"><a class="_JUrl" href="'+ url +'">'+ data.slice(0,start) +'</a></li>';
-							}else {
-							  html += '<li class="_Jli'+ level +'"><a class="_JUrl" href=".'+ url +'">'+ data.slice(0,start) +'</a></li>';
-							}
+					var dataArr = data.split('@'),
+						id = dataArr[2] || '',
+						name = dataArr[0],
+						url = data.split('@')[1],
+						mycontext = mycontext || '';//非单页应用的时候有路径问题，有可能需要获取一个全局变量
+					if(data.indexOf('@') !== -1) {
+						html += '<li id="'+ id +'" class="_Jli'+ level +'"><a class="_JUrl" href="'+ mycontext + url +'">'+ name +'</a></li>';
 					}else {
-					  html += '<li class="_Jli'+ level +'">'+ data +'</li>';
+					  html += '<li id="'+ id +'" class="_Jli'+ level +'">'+ data +'</li>';//有可能自定义url
 					}
 				} else if( data instanceof Array) {
 					for(var k=0,len = data.length;k<len;k+=1) {
@@ -150,7 +147,7 @@
 					for(var key in data) {
 					//每次深一层加一，出来就减一
 						level +=1;
-						html += '<li><ul class="_JUl' + level + '">'+ key;
+						html += '<li id="'+ key.split('@')[1] +'"><ul class="_JUl' + level + '">'+ key.split('@')[0];
 						this.genVerticalMenu(data[key]);
 						html += "</ul></li>"
 						level -=1;
@@ -163,24 +160,19 @@
 				if(data instanceof Array && data.length>0) {
 					var tempArr = []
 					for(var k=0,len=data.length;k<len;k+=1) {
-						var name = data[k].name;
-						var children = data[k].children;
+						var name = data[k].name,
+							id = data[k].id,
+							url = data[k].url,
+							children = data[k].children;
 						if (children && children.length!=0) {
 							var tempObj = {};
-							tempObj[name] = this.sortData(children);
+							tempObj[name+'@'+id] = this.sortData(children);
 							tempArr[k] = tempObj;
 						}else {
-							tempArr[k] = name+'@'+data[k].url;
+							tempArr[k] = name+'@'+url+'@'+id;
 						}
 					}
 					return tempArr;
-				} else if (data instanceof Object && data.children && data.children.length > 0) {
-					var tempObj = {};
-					tempObj[data.name] = this.sortData(data.children);
-					return tempObj;
-				}else {
-					console.log(data)
-					return data.name+'@'+data.url;
 				}
 			};
 			Constr.prototype.getSortData = function (data) {
@@ -219,7 +211,7 @@
 		        //添加参数
 		        for (key in options.params) {
 		            if (options.params.hasOwnProperty(key)) {
-		            	fd.append(key, options.params[key])
+		            	fd.append(key, options.params[key]);
 		            }
 		        }
 		        var fileName = this.attr('name');
@@ -248,10 +240,10 @@
 		            if ('json' == options.dataType) {
 		            	var d;
 		            	try {
-		                	d = window.eval('(' + evt.target.responseText + ')')
+		                	d = window.eval('(' + evt.target.responseText + ')');
 		                }catch(err)
 		                {
-		                	d = JSON.parse(evt.target.responseText)
+		                	d = JSON.parse(evt.target.responseText);
 		                }
 		                options.success(d);
 		            } else {
@@ -318,8 +310,8 @@
 					that.state = false;
 	                //启用
 	                that.removeAttr("disabled");
-	                that.val('')
-	            })
+	                that.val('');
+	            });
 	            try {
 	                form.submit();
 	            } catch (e) {
@@ -370,7 +362,7 @@
 			name:  '_J.Ajax',
 			getInstance:  function( selector ) {   
 				if( instances.hasOwnProperty(selector) )  {    
-					return instances[selector]
+					return instances[selector];
 				}else {
 					instances[selector] = AjaxConstr( selector );
 					return instances[selector];
@@ -456,8 +448,8 @@
 				strategyArr.push(errorMsg);
 				_self.cache.push([dom, function(){
 					return strategies[strategy].apply( dom, strategyArr );
-				}])
-			})( rule )
+				}]);
+			})( rule );
 
 		}
 	};
@@ -473,4 +465,4 @@
 		}
 	};
 	return _J;
-})
+});
