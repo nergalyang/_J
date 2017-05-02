@@ -22,7 +22,6 @@
  	}
 })(function(root, _J, $){
 	//正式开始啦,返回this，能实现链式调用
-
 	var previous_J = root._J;
 
 	_J.version = '1.0.0';
@@ -38,7 +37,7 @@
 			parent = _J,
 			i,len;
 		if( arr[0] === '_J') {
-			arr = Array.prototype.slice.call(arr,1);
+			arr = Array.prototype.slice.call(arr,1); //arr.slice(1);
 		}
 		for( i=0,len=arr.length;i<len;i+=1) {
 			if( !parent[arr[i]]) {	//if( typeof parent[arr[i]] === 'undefined') {
@@ -105,8 +104,8 @@
 			// Constr.prototype = $.__proto__;
 			Constr.prototype.constructor =  '_J.Menu';
 			Constr.prototype.version = '1.0.0';
-			Constr.prototype.getMenu= function(data) {
-				rowData = data;
+			Constr.prototype.getMenu= function(data) { //用prototype的话就没法用实例私有变量了，因为prototype不在构造函数里当然不能访问构造函数的变量啦
+				rowData = data;	//这里的类私有变量可以用prototype.rowData替代，会省点空间？
 				html = '<ul id="_Jtop">';
 				this.genVerticalMenu(rowData);
 				html += '</ul>';
@@ -181,17 +180,15 @@
 		return Constr;
 	})();
 
-
-
+/****************************************************************************************************************************************************************/
 	_J.namespace('_J.Ajax');
 	_J.Ajax = (function(){
 		// //私有变量
-		var options,//选项及选项默认值
-			defaults = {
+		var defaults = {
 		        url: '',
-		        dataType: 'text',
+		        dataType: 'text',//预期返回的类型
 		        params: {},
-		        onSend: function (obj, str) { return true; },
+		        onSend: function (obj) { return true; },
 		        success: function (e) {},
 		        onProgress: function (e) {}
 		    },
@@ -207,7 +204,6 @@
 		        	fd = new FormData(),//h5对象
 		        	key,
 		        	that = this;
-
 		        //添加参数
 		        for (key in options.params) {
 		            if (options.params.hasOwnProperty(key)) {
@@ -259,7 +255,6 @@
 		        this.attr('disabled','disabled');
 	        }
 	    }
-
 	    function iFrameUpload (options) {
 	    	//如果有多个文件就生成多个iframe，用时间戳和随机数确保没有重复。要是重复那你赶紧去买彩票。
 	    	//实例变量
@@ -267,7 +262,7 @@
 	    	if (this.state === false) {
 		    	//state本质上是一个锁，禁止无限制的发送请求
 		    	this.state = true;
-		    	var iframeName = '' + (new Date).getTime()+String(Math.random()).slice(2),
+		    	var iframeName = '' + (new Date()).getTime()+String(Math.random()).slice(2),
 		    		iframe = $('<iframe style="display:none;"></iframe>').attr('name', iframeName),
 		    		//form的target属性{framename：在指定的框架中打开，_blank：在新窗口中打开，_parent：在父框架集中打开
 		    		formObj = $('<form method="post" style="display:none;" enctype="multipart/form-data"></form>').attr('action', options.url).attr('id', 'form_'+iframeName).attr("target", iframeName),
@@ -294,9 +289,9 @@
 	                    try {
 	                        data = window.eval('(' + data + ')');
 	                    }
-	                    catch (e) {
-	                        console.error(e);
-	                        data = $(contents).find('body').text();
+	                    catch (err) {
+	                        console.error(err);
+	                        data = $( contents ).find('body').text();
 	                    }
 	                }
 	                options.success(data);
@@ -314,47 +309,51 @@
 	            });
 	            try {
 	                form.submit();
-	            } catch (e) {
-	                console.error(e);
+	            } catch ( err ) {
+	                console.error( err );
 	            }
 	    	}
 	    }
-
-		var AjaxConstr = function (selector) {
-			if (!(this instanceof AjaxConstr)) {
-			 	return new AjaxConstr(selector);
+		var AjaxConstr = function ( selector ) {
+			var options,//选项及选项默认值
+				obj = $(selector);//暂存jQuery对象
+			if ( !( this instanceof AjaxConstr )) {
+			 	return new AjaxConstr( selector );
 			}
-			var obj = $(selector);//暂存jQuery对象
-			this.options = function (opts) {
+			this.options = function ( opts ) {
 				options = $.extend({}, defaults, opts);
 				return this;
 			};
 			this.state = false;//false为未上传，true为正在上传，确保同一个文件不会被多次上传
 			this.upload = function () {
-				if(!options) {
-					console.error('请先配置options')
+				var result = [],
+					flag = true,
+					v1 = strategies.isNotEmpty( options, '请先配置options' ),
+					v2 = strategies.isNotEmpty( options.url, '无上传地址' ),
+					v3 = strategies.isNotEmpty( this.val(), '请选择文件' );
+				result.push(v1, v2, v3);
+				result.forEach(function(el, i) {
+					if(el) {
+						console.error(el);alert(el);
+						return flag = false;
+					}
+				})
+				if( !flag ) {
+					return;
 				}
-		        if (options.url == '' || options.url == null) {
-		            console.error("无上传地址");
-		            return;
-		        };
-		        if (this.val() == '' || this.val() == null) {
-		            console.error("请选择文件");
-		            return;
-		        };
 		        try {
-		        	options.onSend();
-		        } catch (e) {
-		        	console.error(e);
+		        	options.onSend( this );
+		        } catch ( err ) {
+		        	console.error( err );
 		        }
 		        /*判断是否可以用h5*/
-		        if (root.FormData) {
-		            formDataSubmit.call(this, options);
+		        if ( root.FormData ) {
+		            formDataSubmit.call( this, options );
 		        } else {
-					iFrameUpload.call(this, options);
+					iFrameUpload.call( this, options );
 		        }
 			};
-			$.extend(obj,this);//完美继承jQuery，本质上是完美双重继承
+			$.extend(obj,this);//继承jQuery
 			return obj;
 		};
 		AjaxConstr.prototype.constructor = AjaxConstr;
@@ -430,6 +429,16 @@
 			if( !/(^1[3][5][8][0-9]{9}$)/.test( value ) ) {
 				return errorMsg;
 			}
+		},
+		isEmail : function ( value, errorMsg ) {
+			if ( ! /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/.test( value ) ) {
+				return errorMsg;
+			}
+		},
+		isUrl : function ( value, errorMsg ) {
+			if ( !/^((https|http|ftp|rtsp|mms)?:\/\/)+[A-Za-z0-9]+\.[A-Za-z0-9]+[\/=\?%\-&_~`@[\]\':+!]*([^<>\"\"])*$/.test( value) ) {
+				return errorMsg;
+			}
 		}
 	}; 
 	_J.namespace('_J.Ajax');
@@ -441,13 +450,14 @@
 		for ( var i=0,rule; rule = rules[i++]; ) {
 			(function ( rule ) {
 				//比较区别多个rule
-				var strategyArr = rule.strategy.split(':'),
-					strategy = strategyArr.shift(),
+				var strategyArr = rule.strategy.split(':'),	
 					errorMsg = rule.errorMsg;
-				strategyArr.unshift(dom.val());
-				strategyArr.push(errorMsg);
 				_self.cache.push([dom, function(){
-					return strategies[strategy].apply( dom, strategyArr );
+					var args = strategyArr.slice(0),
+						strategy = args.shift();
+					args.unshift(dom.val());
+					args.push(errorMsg);
+					return strategies[strategy].apply( dom, args );
 				}]);
 			})( rule );
 
@@ -459,8 +469,9 @@
 			errorMsg;	
 		for ( i = 0; validatorFunc = this.cache[i++]; ) {
 			errorMsg = validatorFunc[1]();
-			if ( errorMsg ) {
+			if ( errorMsg && callback ) {
 				callback(validatorFunc[0], errorMsg);
+				return 
 			}
 		}
 	};
