@@ -58,7 +58,7 @@
 		// end var
 		// public API -- constructor
 		var Constr = function (selector) {
-			if (!(this instanceof Constr)) {
+			if ( !(this instanceof Constr) ) {
 			 	return new Constr(selector);
 			}
 			var obj = $(selector);//暂存jQuery对象
@@ -131,10 +131,10 @@
 					var dataArr = data.split('@'),
 						id = dataArr[2] || '',
 						name = dataArr[0],
-						url = data.split('@')[1],
-						mycontext = mycontext || '';//非单页应用的时候有路径问题，有可能需要获取一个全局变量
+						url = data.split('@')[1];
+						context = mycontext || '';//非单页应用的时候有路径问题，有可能需要获取一个全局变量
 					if(data.indexOf('@') !== -1) {
-						html += '<li id="'+ id +'" class="_Jli'+ level +'"><a class="_JUrl" href="'+ mycontext + url +'">'+ name +'</a></li>';
+						html += '<li id="'+ id +'" class="_Jli'+ level +'"><a class="_JUrl" href="'+ context + url +'">'+ name +'</a></li>';
 					}else {
 					  html += '<li id="'+ id +'" class="_Jli'+ level +'">'+ data +'</li>';//有可能自定义url
 					}
@@ -146,9 +146,11 @@
 					for(var key in data) {
 					//每次深一层加一，出来就减一
 						level +=1;
-						html += '<li id="'+ key.split('@')[1] +'"><ul class="_JUl' + level + '">'+ key.split('@')[0];
-						this.genVerticalMenu(data[key]);
-						html += "</ul></li>"
+						if( level === 1 ) {
+							html += '<li id="'+ key.split('@')[1] +'"><ul class="_JUl' + level + '"><i class="iconfont icon-nav '+ key.split('@')[2] +'"></i>'+ key.split('@')[0];
+							this.genVerticalMenu(data[key]);
+							html += "</ul></li>";
+						}
 						level -=1;
 					}
 				}
@@ -157,15 +159,16 @@
 			// sortData的格式
 			Constr.prototype.sortData = function (data) {
 				if(data instanceof Array && data.length>0) {
-					var tempArr = []
+					var tempArr = [];
 					for(var k=0,len=data.length;k<len;k+=1) {
 						var name = data[k].name,
 							id = data[k].id,
+							icon = data[k].icon,
 							url = data[k].url,
 							children = data[k].children;
 						if (children && children.length!=0) {
 							var tempObj = {};
-							tempObj[name+'@'+id] = this.sortData(children);
+							tempObj[name+'@'+id+'@'+icon] = this.sortData(children);
 							tempArr[k] = tempObj;
 						}else {
 							tempArr[k] = name+'@'+url+'@'+id;
@@ -205,7 +208,7 @@
 		        	key,
 		        	that = this;
 		        //添加参数
-		        for (key in options.params) {
+		        for ( key in options.params ) {
 		            if (options.params.hasOwnProperty(key)) {
 		            	fd.append(key, options.params[key]);
 		            }
@@ -421,7 +424,12 @@
 			}
 		},
 		minLength : function ( value, length, errorMsg ) {
-			if(value.length<length) {
+			if(value.length < length) {
+				return errorMsg;
+			}
+		},
+		maxLength : function (value, length, errorMsg ) {
+			if(value.length > length) {
 				return errorMsg;
 			}
 		},
@@ -449,7 +457,7 @@
 		var _self = this;
 		for ( var i=0,rule; rule = rules[i++]; ) {
 			(function ( rule ) {
-				//比较区别多个rule
+				//由于是push进去，需要用闭包区别多个rule
 				var strategyArr = rule.strategy.split(':'),	
 					errorMsg = rule.errorMsg;
 				_self.cache.push([dom, function(){
@@ -469,9 +477,13 @@
 			errorMsg;	
 		for ( i = 0; validatorFunc = this.cache[i++]; ) {
 			errorMsg = validatorFunc[1]();
+			if( errorMsg && (!callback)) {
+				$('._Jwarnings').remove();
+				validatorFunc[0].after('<span class="_Jwarnings">'+ errorMsg +'</span>');
+				return true;
+			}
 			if ( errorMsg && callback ) {
-				callback(validatorFunc[0], errorMsg);
-				return 
+				return callback(validatorFunc[0], errorMsg); 
 			}
 		}
 	};
