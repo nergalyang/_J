@@ -147,6 +147,7 @@
 					//每次深一层加一，出来就减一
 						level +=1;
 						if( level === 1 ) {
+							//增加icon
 							html += '<li id="'+ key.split('@')[1] +'"><ul class="_JUl' + level + '"><i class="iconfont icon-nav '+ key.split('@')[2] +'"></i>'+ key.split('@')[0];
 							this.genVerticalMenu(data[key]);
 							html += "</ul></li>";
