@@ -89,15 +89,38 @@
 							$targetLi = $targetLi.parent().parent();
 						}
 					}
+					
 				});
 				// 内存回收一下咯
 				html= '';
 			    return this;
 			};
+			this.drawBreadcrumbs = function ($dom) {
+				var currentUrl = this.getUrlRelativePath();
+				$('._JUrl').each(function( i, el) {
+					if($(el).attr('href') === (currentUrl)) {
+						var level = $(el).parent().attr('class').slice(-1);
+						var breadcrum = [];
+						breadcrum.unshift($(el).parent().text())
+						for (var l=1;l<=level;l+=1) {
+							var text = $(el).closest('._JUl'+l)[0].innerHTML;
+							if( l === 1){
+								start = 	text.indexOf('</i>');
+								end = text.indexOf('<li');	
+								breadcrum.unshift(text.slice(start+4, end));
+							}else {
+								end = text.indexOf('<li');	
+								breadcrum.unshift(text.slice(0, end));
+							}
+						}
+						$dom.html(breadcrum.join('/'));
+					}
+				});
+			};
 			this.getRowData = function () {
 				return rowData;
 			};
-			$.extend(obj,this);//完美继承jQuery，本质上是完美双重继承
+			$.extend(obj,this);//完美继承jQuery
 			return obj;
 		};
 		// public API -- prototype
@@ -123,7 +146,6 @@
 			/*接收的格式
 			var data1 = [{
 				'商品管理':['商品分类管理@http://www.baidu.com',{'二级菜单':['二一@http://www.baidu.com','二二@http://www.baidu.com']},'商品公告审核@http://www.baidu.com'],
-				'采购商管理':['采购商信息管理','采购商订单管理','二次退货'],
 				'产地管理': ['产地信息管理@http://www.baidu.com',{'二级菜单':['二一@http://www.baidu.com',{'三级菜单':['三一@http://www.baidu.com','三二@http://www.baidu.com']},'二二@http://www.baidu.com']},'产地公告','产地订单管理']
 			}];*/
 			Constr.prototype.genVerticalMenu = function (data) {
@@ -146,9 +168,12 @@
 					for(var key in data) {
 					//每次深一层加一，出来就减一
 						level +=1;
-						if( level === 1 ) {
-							//增加icon
+						if( level === 1 ) {	//第一层加上icon
 							html += '<li id="'+ key.split('@')[1] +'"><ul class="_JUl' + level + '"><i class="iconfont icon-nav '+ key.split('@')[2] +'"></i>'+ key.split('@')[0];
+							this.genVerticalMenu(data[key]);
+							html += "</ul></li>";
+						}else {
+							html += '<li id="'+ key.split('@')[1] +'"><ul class="_JUl' + level + '">'+ key.split('@')[0];
 							this.genVerticalMenu(data[key]);
 							html += "</ul></li>";
 						}
@@ -222,6 +247,7 @@
 		        fd.append(fileName, fileObj);
 		        //异步上传
 		        var xhr = new XMLHttpRequest();
+		        //progress：xhr.upload.onprogress在上传阶段(即xhr.send()之后，xhr.readystate=2之前)触发，每50ms触发一次
 		        xhr.upload.addEventListener("progress", function (evt) {
 		            if (evt.lengthComputable) {
 		                var percentComplete = Math.round(evt.loaded * 100 / evt.total);
@@ -341,7 +367,7 @@
 						console.error(el);alert(el);
 						return flag = false;
 					}
-				})
+				});
 				if( !flag ) {
 					return;
 				}
@@ -435,7 +461,7 @@
 			}
 		},
 		isMobile : function (value, errorMsg) {
-			if( !/(^1[3][5][8][0-9]{9}$)/.test( value ) ) {
+			if( !/^(((13[0-9]{1})|(15[0-9]{1})|(18[0-9]{1}))+\d{8})$/.test( value ) ) {
 				return errorMsg;
 			}
 		},
@@ -448,7 +474,23 @@
 			if ( !/^((https|http|ftp|rtsp|mms)?:\/\/)+[A-Za-z0-9]+\.[A-Za-z0-9]+[\/=\?%\-&_~`@[\]\':+!]*([^<>\"\"])*$/.test( value) ) {
 				return errorMsg;
 			}
+		},
+		isNumber : function ( value, errorMsg) {
+			if ( !/^[0-9]+\.{0,1}[0-9]{0,2}$/.test( value ) ) {
+				return errorMsg;
+			}
+		},
+		isAccount : function ( value, errorMsg ) {
+			if ( !/^[a-zA-Z0-9]\w{2,30}$/.test( value ) ) {
+				return errorMsg;
+			}
+		},
+		isPhone : function ( value, errorMsg ) {
+			if ( !/^0\d{2,3}-?\d{7,8}$/.test( value ) ) {
+				return errorMsg;
+			}
 		}
+			
 	}; 
 	_J.namespace('_J.Ajax');
 	_J.Validator = function () {
@@ -488,5 +530,131 @@
 			}
 		}
 	};
+/****************************************************************************************************************************************************************/
+	_J.namespace('_J.SearchInput');
+	_J.SearchInput = function (selector, url ) {
+		if ( !( this instanceof _J.SearchInput )) {
+		 	return new _J.SearchInput(selector, url );
+		}
+		var appendResult = function (data) {
+			$('._JSearchUl').remove();//清空上次记录，添加新记录
+			var html = '<ul class="_JSearchUl">';
+			html+= '<li class="_JSearchLi active" value="'+data[0].id+'">'+data[0].name+'</li>';
+			for ( var i =1; i<data.length;i++) {
+				html+= '<li class="_JSearchLi" value="'+data[i].id+'">'+data[i].name+'</li>';
+			}
+			html += '</ul>';
+			$(this).after(html);
+		};
+		var bindLiEvents = function () {
+			var self = this;
+			//绑定鼠标hover事件
+			$(document).on('mouseover','._JSearchUl',function (e){
+				lastDom = lastDom || $('._JSearchLi.active');
+				lastDom.removeClass('active');
+				$(e.target).addClass('active');
+				lastDom= $(e.target);
+			});
+			//绑定鼠标点击选择事件
+			$(document).on('click','._JSearchUl',function (e){
+				targetClone2.val(e.target.value);
+				$(self).val(e.target.innerText);
+				$('._JSearchUl').remove();
+			});
+			//判断鼠标是否在Ul里面
+			$(document).on('mouseleave','._JSearchUl',function (e){
+				mouseleave = true;
+			});
+			$(document).on('mouseenter','._JSearchUl',function (e){
+				mouseleave = false;
+			});
+		};
+		var strategies = {
+			13 : function (liList,current,first,last) {
+				$(this).val(current.text());
+				$('._JSearchUl').remove();
+			},
+			38 : function (liList,current,first, last){
+				if(first) {
+					liList.last().addClass('active');
+					liList.first().removeClass('active');
+				}else {
+					current.removeClass('active');
+					current.prev().addClass('active');
+				}
+			},
+			40 : function (liList,current,first, last){
+				if(last){
+					liList.first().addClass('active');
+					liList.last().removeClass('active');
+				}else {
+					current.removeClass('active');
+					current.next().addClass('active');
+				}
+			}
+		};
+		var obj  = $(selector),
+			targetClone = obj.clone(),
+			targetClone2 = obj.clone().hide();
+		targetClone.attr('id', '_J'+Math.random()*1000000000);
+		targetClone.removeAttr('name');
+		var div = $('<div style="position:relative;float:left;margin-bottom:10px;"></div>');
+		div.append(targetClone);
+		div.append(targetClone2);
+		obj.replaceWith(div);
+		var lastDom,
+			first = true,
+			mouseleave = false,
+			timer;
+		targetClone.on("input propertychange blur", function (e) {
+			var self = this;
+			console.log(this.value);
+			if(e.type == 'blur' && mouseleave) {
+				$('._JSearchUl').remove();
+			}else if(e.type != 'blur'){
+				if(timer) {
+					return;
+				}else {
+					console.log('fasongajax')
+					timer = setTimeout(function(){
+						 $.ajax({
+						 	type:"get",
+						 	dataType:'json',
+						 	url:url+self.value,
+						 	success : function (data) {
+						 		if(data.items.length>0){
+						 			appendResult.call(self, data.items);
+						 		}
+								timer = null;
+								lastDom = undefined;
+						 	}
+						 });
+					},150);
+					// console.log('正在渲染')
+				}
+				if(first) {
+					bindLiEvents.call(self);
+					first = false;
+				}
+			}
+		});
+		targetClone.on('keyup', function (e) {
+			if( e.keyCode in strategies) {
+				var liList = $('._JSearchLi'),
+					current = $('._JSearchLi.active'),
+					first = current[0] === liList.first()[0],
+					last = current[0] === liList.last()[0];
+				strategies[e.keyCode].call(this,liList,current,first,last);
+			}
+		});
+		//修改的时候的回填数据
+		this.setValue = function (name, id) {
+			targetClone.val(name);
+			targetClone2.val(id);
+		}
+	};	
+
+	
+	
 	return _J;
 });
