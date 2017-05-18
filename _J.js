@@ -101,7 +101,7 @@
 					if($(el).attr('href') === (currentUrl)) {
 						var level = $(el).parent().attr('class').slice(-1);
 						var breadcrum = [];
-						breadcrum.unshift($(el).parent().text())
+						breadcrum.unshift($(el).parent().text());
 						for (var l=1;l<=level;l+=1) {
 							var text = $(el).closest('._JUl'+l)[0].innerHTML;
 							if( l === 1){
@@ -476,7 +476,29 @@
 			}
 		},
 		isNumber : function ( value, errorMsg) {
-			if ( !/^[0-9]+\.{0,1}[0-9]{0,2}$/.test( value ) ) {
+			if ( !/^[0-9]+\.{0,1}[0-9]*$/.test( value ) ) {
+				return errorMsg;
+			}
+		},
+		maxNumber : function (value, max, errorMsg ) {
+			if( parseFloat( value ) > parseFloat( max ) ) {
+				return errorMsg;
+			}
+		},
+		minNumber : function (value, min, errorMsg ) {
+			if( parseFloat( value ) < parseFloat( min ) ) {
+				return errorMsg;
+			}
+		},
+		maxInt : function ( value, length, errorMsg ) {
+			var reg = new RegExp( '^\\d{0,'+ length+'}(\\.\\d+)?$' );
+			if ( !reg.test( value ) ) {
+				return errorMsg;
+			}
+		},
+		maxDecimal : function ( value, length, errorMsg ) {
+			reg=new RegExp( '^[0-9]+\.{0,1}[0-9]{0,'+length+'}$' );
+			if ( !reg.test( value ) ) {
 				return errorMsg;
 			}
 		},
@@ -487,6 +509,12 @@
 		},
 		isPhone : function ( value, errorMsg ) {
 			if ( !/^0\d{2,3}-?\d{7,8}$/.test( value ) ) {
+				return errorMsg;
+			}
+		},
+		hasSpecialCharater : function ( value, errorMsg ) {
+			var reg = new RegExp('[`~!@#$^&*()=|{}:;,\\[\\].<>/?~！@#￥……&*（）——|{}【】‘；：”“。，、？]');
+			if ( reg.test( value ) ) {
 				return errorMsg;
 			}
 		}
@@ -520,6 +548,9 @@
 			errorMsg;	
 		for ( i = 0; validatorFunc = this.cache[i++]; ) {
 			errorMsg = validatorFunc[1]();
+			if(!errorMsg) {
+				$('._Jwarnings').remove();
+			}
 			if( errorMsg && (!callback)) {
 				$('._Jwarnings').remove();
 				validatorFunc[0].after('<span class="_Jwarnings">'+ errorMsg +'</span>');
@@ -532,12 +563,14 @@
 	};
 /****************************************************************************************************************************************************************/
 	_J.namespace('_J.SearchInput');
-	_J.SearchInput = function (selector, url ) {
+	_J.SearchInput = function (selector, url, icon ) {
 		if ( !( this instanceof _J.SearchInput )) {
 		 	return new _J.SearchInput(selector, url );
 		}
+		//后台返回的结果
 		var appendResult = function (data) {
-			$('._JSearchUl').remove();//清空上次记录，添加新记录
+			$('._JSearchUl').remove();
+			mouseleave = true;//清空上次记录，添加新记录
 			var html = '<ul class="_JSearchUl">';
 			html+= '<li class="_JSearchLi active" value="'+data[0].id+'">'+data[0].name+'</li>';
 			for ( var i =1; i<data.length;i++) {
@@ -556,10 +589,13 @@
 				lastDom= $(e.target);
 			});
 			//绑定鼠标点击选择事件
-			$(document).on('click','._JSearchUl',function (e){
-				targetClone2.val(e.target.value);
+			$(document).on('click','#div'+ id +'>._JSearchUl',function (e){
+				hiddenTarget.val(e.target.value);
 				$(self).val(e.target.innerText);
+				inputResult.val(e.target.innerText);
 				$('._JSearchUl').remove();
+				mouseleave  = true;
+				$('._JInputSearch').remove();
 			});
 			//判断鼠标是否在Ul里面
 			$(document).on('mouseleave','._JSearchUl',function (e){
@@ -571,8 +607,11 @@
 		};
 		var strategies = {
 			13 : function (liList,current,first,last) {
-				$(this).val(current.text());
+				hiddenTarget.val(current.val());
+				inputResult.val(current.text());
 				$('._JSearchUl').remove();
+				mouseleave = true;
+				$('._JInputSearch').remove();
 			},
 			38 : function (liList,current,first, last){
 				if(first) {
@@ -594,66 +633,215 @@
 			}
 		};
 		var obj  = $(selector),
-			targetClone = obj.clone(),
-			targetClone2 = obj.clone().hide();
-		targetClone.attr('id', '_J'+Math.random()*1000000000);
-		targetClone.removeAttr('name');
-		var div = $('<div style="position:relative;float:left;margin-bottom:10px;"></div>');
-		div.append(targetClone);
-		div.append(targetClone2);
-		obj.replaceWith(div);
-		var lastDom,
-			first = true,
-			mouseleave = false,
+		    id = '' + (new Date()).getTime()+String(Math.random()).slice(2),
+			inputResult = $('<input readonly>'),
+			hiddenTarget = obj.clone().hide(),
+			div = $('<div id="div'+ id +'" style="position:relative;float:left;"></div>'),//作为调整css的容器
+		    lastDom,//记录上一个active，避免循环整个li
+			first = true,//是否初始化状态，用于事件绑定
+			mouseleave = true,//鼠标离开Ul区域
 			timer;
-		targetClone.on("input propertychange blur", function (e) {
-			var self = this;
-			console.log(this.value);
-			if(e.type == 'blur' && mouseleave) {
-				$('._JSearchUl').remove();
-			}else if(e.type != 'blur'){
-				if(timer) {
-					return;
-				}else {
-					console.log('fasongajax')
-					timer = setTimeout(function(){
-						 $.ajax({
-						 	type:"get",
-						 	dataType:'json',
-						 	url:url+self.value,
-						 	success : function (data) {
-						 		if(data.items.length>0){
-						 			appendResult.call(self, data.items);
-						 		}
-								timer = null;
-								lastDom = undefined;
-						 	}
-						 });
-					},150);
-					// console.log('正在渲染')
+		div.append(inputResult);
+		div.append(hiddenTarget);
+		obj.replaceWith(div);
+		var id = '' + (new Date()).getTime()+String(Math.random()).slice(2);
+		var searchInput = $('<input class="_JInputSearch" id="'+id+'" placeholder="请输入">');
+		//鼠标点击触发下拉搜索功能
+		inputResult.on('click', function (){
+			//添加下拉搜索框
+			$(this).after(searchInput);
+			//光标事件
+			$('#'+id).focus();
+			searchInput.off("input propertychange blur");
+			//添加下单菜单
+			searchInput.on("input propertychange blur", function (e) {
+				var self = this;
+				if( e.type == 'blur' && mouseleave ) {
+					$('._JSearchUl').remove();
+					$('._JInputSearch').remove();
+				}else if(e.type != 'blur'){
+					//timer用于分时函数，避免高频率触发ajax
+					if( timer ) {
+						return;
+					}else {
+						timer = setTimeout(function(){
+							 $.ajax({
+							 	type:"get",
+							 	dataType:'json',
+							 	url:url+self.value,
+							 	success : function (data) {
+							 		if(data.items.length>0){
+							 			appendResult.call(self, data.items);
+							 		}else {
+							 			appendResult.call(self, [{name:'没有找到内容',id:''}]);
+							 		}
+									timer = null;
+									lastDom = undefined;
+							 	}
+							 });
+						},150);
+					}
+					//绑定事件只需要绑定一次
+					if(first) {
+						bindLiEvents.call(self);
+						first = false;
+					}
 				}
-				if(first) {
-					bindLiEvents.call(self);
-					first = false;
+			});
+			//键盘箭头及回车事件
+			searchInput.off("keyup");
+			searchInput.on('keyup', function (e) {
+				if( e.keyCode in strategies) {
+					var liList = $('._JSearchLi'),
+						current = $('._JSearchLi.active'),
+						first = current[0] === liList.first()[0],
+						last = current[0] === liList.last()[0];
+					strategies[e.keyCode].call(this,liList,current,first,last);
 				}
-			}
-		});
-		targetClone.on('keyup', function (e) {
-			if( e.keyCode in strategies) {
-				var liList = $('._JSearchLi'),
-					current = $('._JSearchLi.active'),
-					first = current[0] === liList.first()[0],
-					last = current[0] === liList.last()[0];
-				strategies[e.keyCode].call(this,liList,current,first,last);
-			}
+			});
+			
 		});
 		//修改的时候的回填数据
 		this.setValue = function (name, id) {
-			targetClone.val(name);
-			targetClone2.val(id);
-		}
+			inputResult.val(name);
+			hiddenTarget.val(id);
+		};
 	};	
+	/****************************************************************************************************************************************************************/
+	_J.namespace('_J.ListenerHub');
+	_J.ListenerHub = function () {
+		var _listen,
+		_trigger,
+		_remove,
+		_slice = Array.prototype.slice,
+		_shift = Array.prototype.shift,
+		_unshift = Array.prototype.unshift,
+		namespaceCache = {},
+		_create,
+		find,
+		each = function ( arr, fn ) {
+			var ret;
+			for ( var i = 0, l = arr.length; i<l; i++ ) {
+				var n = arr[i];
+				ret = fn.call( n, i, n);
+			}
+			return ret;
+		};
+		_listen = function ( key, fn, cache ) {
+			if ( !cache[key] ) {
+				cache[key] = [];
+			}
+			cache[key].push( fn );
+		};
+		_remove = function ( key, cache, fn ) {
+			if ( cache[key] ) {
+				if ( fn ) {
+					for (var i = cache[key].length; i>=0; i-- ) {
+						if ( cache[key][i] === fn ) {
+							cache[key].splice( i, 1 );
+						}
+					}
+				}else {
+					cache[key] = [];
+				}
+			}
+		},
+		_trigger = function () {
+			var cache = _shift.call( arguments ),
+				key = _shift.call( arguments ),
+				args = arguments,
+				_self = this,
+				ret,
+				stack = cache[key];
+			if( !stack || stack.length === 0 ) {
+				return;
+			}
+			return each( stack, function () {
+				return this.apply( _self, args );
+			});
+		};
+		_create = function ( namespace ) {
+			var namespace = namespace || 'default';
+			var cache = {},
+				offlineStack = [],
+				ret = {
+					listen : function ( key, fn, last ) {
+						_listen( key, fn, cache );
+						if ( offlineStack === null ) {
+							return;
+						}
+						if ( last === 'last' ) {
+							offlineStack.length && offlineStack.pop()();
+						}else {
+							each( offlineStack, function (){
+								this();
+							});
+						}
+						offlineStack = null;
+					},
+					one : function ( key, fn ,last ) {
+						_remove( key, cache ); //清所有
+						this.listen( key, fn, last );
+					},
+					remove : function  ( key, fn ) {
+						_remove( key, cache, fn );
+					},
+					trigger : function () {
+						var fn,
+							args,
+							_self = this;
+						_unshift.call( arguments, cache );
+						args = arguments;
+						fn = function () {
+							return _trigger.apply( _self, args );
+						};
+						if ( offlineStack ) {
+							return offlineStack.push(fn);
+						}
+						return fn();
+					}
+				};
+				return namespace? (namespaceCache[namespace]? namespaceCache[namespace] : namespaceCache[namespace] = ret ) : ret;
+		};
 
+			this.create = _create;
+			this.one = function ( key, fn, last ) {
+				var event = this.create();
+				event.one( key, fn, last );
+			};
+			this.remove = function ( key, fn ) {
+				var event = this.create();
+				event.remove( key, fn );
+			};
+			this.listen = function ( key, fn, last ) {
+				var event = this.create();
+				event.listen( key, fn ,last );
+			};
+			this.trigger = function () {
+				var event = this.create();
+				event.trigger.apply( this, arguments );
+			};
+	};
+	
+	
+	/****************************************************************************************************************************************************************/
+	_J.namespace('_J.extendDeep');
+	_J.extendDeep = function ( parent, child ) {
+		var i,
+			toStr = Object.prototype.toString,
+			astr = '[object Array]',
+			child = child || {};
+		for ( i in parent ) {
+			if ( parent.hasOwnProperty( i ) ) {
+				if ( typeof parent[i] === 'object' ) {
+					child[i] = ( toStr.call( parent[i] ) === astr ) ? []:{};
+					_J.extendDeep( parent, child );
+				}else {
+					child[i] = parent[i];
+				}
+			}
+		}
+	};
 	
 	
 	return _J;
